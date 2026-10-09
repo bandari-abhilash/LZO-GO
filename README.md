@@ -72,6 +72,35 @@ BenchmarkDecompress/large-10      28471 ns/op    2107 MB/s    0 allocs/op
 
 Zero allocations — the decoder writes only into the `dst` you hand it.
 
+### TODO: performance work
+
+The decoder is a direct port and has not been tuned yet. On an Apple M5,
+liblzo2 (C) decodes the `records` vector about 3.8x as fast and lzo-java about
+1.5x as fast as this package. A CPU profile of `BenchmarkDecompress` attributes
+about 70% of the time to the byte-by-byte match copy in `copyMatch`
+(`for ; t > 0; t-- { dst[op] = dst[mPos] ... }`).
+
+- [ ] **Chunked match copy.** When the match distance `op - mPos` is at least 8,
+      copy 8 bytes at a time (`binary.LittleEndian.Uint64`/`PutUint64`, or
+      `copy()` on non-overlapping pieces). Keep the byte loop only for short
+      distances, where source and destination overlap (e.g. repeated-byte runs).
+      liblzo2 does the same with its 4- and 8-byte copy paths. Expected to be
+      the largest win, especially on `large`.
+- [ ] **Bounds-check elimination.** `go build -gcflags=-d=ssa/check_bce/debug=1`
+      reports 34 bounds checks in `Decompress`. Reslice once per copy (for
+      example `d := dst[mPos : op+t]`) so the compiler can prove the indexes in
+      range and drop per-byte checks.
+- [ ] **Trailing-literal copy.** The 1–3 byte loop in `matchNext` could become a
+      fixed-size copy when enough input and output space remains.
+- [ ] **Restructure the `goto` state machine** into a loop with a `switch`, if
+      profiling shows registers being spilled across labels.
+- [ ] Re-run the cross-language harnesses in
+      [the benchmark write-up](https://bandariabhilash.com/blog/benchmarks/lzo1z/README.md)
+      and update the numbers above and in the article.
+
+Every change must keep `go test ./...` passing against the liblzo2-generated
+vectors, including the malformed-input and overrun cases.
+
 ## Test vectors
 
 `testdata/` holds `.orig`/`.lzo1z` pairs covering empty-ish inputs (1, 4 and
