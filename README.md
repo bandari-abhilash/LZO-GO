@@ -1,5 +1,6 @@
 # lzo1z
 
+[![CI](https://github.com/bandari-abhilash/LZO-GO/actions/workflows/ci.yml/badge.svg)](https://github.com/bandari-abhilash/LZO-GO/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/bandari-abhilash/LZO-GO.svg)](https://pkg.go.dev/github.com/bandari-abhilash/LZO-GO)
 
 **LZO1Z decompression in pure Go.** No cgo, no `liblzo2` at runtime, nothing
@@ -30,6 +31,8 @@ Decompression only. There's no compressor here; use `liblzo2` to produce data.
 ## Usage
 
 ```go
+import lzo1z "github.com/bandari-abhilash/LZO-GO"
+
 dst := make([]byte, maxDecompressedSize)
 
 n, err := lzo1z.Decompress(src, dst)
